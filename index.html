@@ -1147,6 +1147,11 @@
       let tabs = [{id: Date.now(), name: 'index.html', content: ''}];
       let activeTabId = tabs[0].id;
 
+      function saveTabs() {
+        localStorage.setItem('html_editor_tabs_v2', JSON.stringify(tabs));
+        localStorage.setItem('html_editor_active_tab_id', activeTabId);
+      }
+
       function renderTabs() {
         const list = document.getElementById('tabList');
         list.innerHTML = tabs.map(tab => `
@@ -1171,12 +1176,14 @@
         updateHighlight();
         updateLineNumbers();
         saveHistory();
+        saveTabs();
       }
 
       function addTab() {
         const newId = Date.now();
         tabs.push({id: newId, name: `new-${tabs.length}.html`, content: ''});
         switchTab(newId);
+        saveTabs();
       }
 
       function closeTab(id) {
@@ -1189,6 +1196,7 @@
         }
         renderTabs();
         updateHighlight();
+        saveTabs();
       }
 
       function renameTab(id) {
@@ -1196,6 +1204,7 @@
         editorPrompt(currentLang === 'cn' ? '重命名标签页' : 'Rename Tab', (newName) => {
           tab.name = newName.endsWith('.html') ? newName : newName + '.html';
           renderTabs();
+          saveTabs();
         });
       }
       let renderPending = false;
@@ -1251,10 +1260,25 @@
       
       window.onload = function() {
           initThemes(); 
+          
+          const savedTabs = localStorage.getItem('html_editor_tabs_v2');
+          const savedActiveId = localStorage.getItem('html_editor_active_tab_id');
+          if (savedTabs) {
+              tabs = JSON.parse(savedTabs);
+              activeTabId = parseInt(savedActiveId) || tabs[0].id;
+              const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
+              codeArea.value = activeTab.content || '';
+          } else {
+              const legacyContent = localStorage.getItem('html_editor_ult_content');
+              if (legacyContent) {
+                  tabs[0].content = legacyContent;
+                  codeArea.value = legacyContent;
+              }
+          }
+
           renderTabs();
           renderAiSuggestions();
-          const saved = localStorage.getItem('html_editor_ult_content');
-          if (saved) { codeArea.value = saved; saveHistory(); } else { saveHistory(); }
+          saveHistory();
           
           const savedThemeIdx = localStorage.getItem('html_editor_theme_idx');
           const savedCustom = localStorage.getItem('html_editor_custom_theme');
@@ -1829,6 +1853,7 @@
           clearTimeout(highlightTimeout);
           highlightTimeout = setTimeout(() => {
               updatePreview();
+              saveTabs();
               localStorage.setItem('html_editor_ult_content', codeArea.value);
           }, 150);
 
